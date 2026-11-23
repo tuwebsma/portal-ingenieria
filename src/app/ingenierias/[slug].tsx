@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, Pressable, useWindowDimensions } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Platform, View, Text, StyleSheet, Pressable, useWindowDimensions } from 'react-native';
 import { useLocalSearchParams, Link } from 'expo-router';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,15 +8,71 @@ import { NewsCard } from '@/components/NewsCard';
 import { SectionTitle } from '@/components/SectionTitle';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '@/constants/theme';
 import { ENGINEERING_BRANCHES } from '@/data/engineering';
-import { NEWS_ARTICLES } from '@/data/news';
+import { NEWS_SOURCES } from '@/data/news-sources';
+import { fetchAllNews } from '@/lib/newsIntegration';
+import { NewsArticle } from '@/types';
 
 export default function EngineeringDetailPage() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
   const isTablet = width >= 600 && width < 900;
+  const [relatedNews, setRelatedNews] = useState<NewsArticle[]>([]);
+  const [loadingNews, setLoadingNews] = useState(true);
 
   const branch = ENGINEERING_BRANCHES.find((b) => b.slug === slug);
+
+  useEffect(() => {
+    let active = true;
+    if (!branch) {
+      setLoadingNews(false);
+      return () => {
+        active = false;
+      };
+    }
+    const load = Platform.OS === 'web'
+      ? fetch('/api/news', { headers: { Accept: 'application/json' } }).then(async (response) => {
+          if (!response.ok) throw new Error(`Noticias: respuesta HTTP ${response.status}`);
+          return response.json() as Promise<{ articles: NewsArticle[] }>;
+        }).then((result) => result.articles)
+      : fetchAllNews(NEWS_SOURCES).then((result) => result.articles);
+
+    const keywordsByCareer: Record<string, string[]> = {
+      'bioingenieria': ['medicina', 'médica', 'médico', 'salud', 'biología', 'biologica', 'cáncer', 'cancer', 'biomédica'],
+      'ingenieria-civil': ['infraestructura', 'civil', 'puente', 'vial', 'construcción', 'construccion', 'obra', 'estructura', 'transporte'],
+      'ingenieria-mecanica': ['máquina', 'maquina', 'mecánica', 'mecanica', 'manufactura', 'motor', 'turbina', 'robótica', 'robotica'],
+      'ingenieria-agrimensura': ['geodesia', 'catastro', 'cartografía', 'cartografia', 'observación de la tierra', 'satélite', 'satelite'],
+      'ingenieria-industrial': ['producción', 'produccion', 'industria', 'manufactura', 'logística', 'logistica', 'proceso'],
+      'ingenieria-naval': ['naval', 'barco', 'buque', 'marino', 'puerto', 'oceánico', 'oceanico'],
+      'ingenieria-energia-electrica': ['energía', 'energia', 'eléctrica', 'electrica', 'reactor', 'nuclear', 'eléctrico', 'electrico'],
+      'ingenieria-quimica': ['química', 'quimica', 'material', 'litio', 'batería', 'bateria', 'procesos'],
+      'ingenieria-electronica': ['electrónica', 'electronica', 'electrónico', 'electronico', 'circuito', 'sensor', 'telecomunicaciones', 'radar'],
+      'licenciatura-analisis-sistemas': ['software', 'computación', 'computacion', 'datos', 'informática', 'informatica', 'sistemas'],
+      'ingenieria-informatica': ['software', 'computación', 'computacion', 'datos', 'informática', 'informatica', 'inteligencia artificial', 'sistemas'],
+      'ingenieria-alimentos': ['alimento', 'alimentaria', 'nutrición', 'nutricion', 'agroalimentaria'],
+      'ingenieria-petroleo': ['petróleo', 'petroleo', 'pozo', 'hidrocarburo', 'energía', 'energia'],
+    };
+
+    load.then((articles) => {
+      if (!active) return;
+      const keywords = keywordsByCareer[branch.slug] ?? [];
+      setRelatedNews(
+        articles
+          .filter((article) => {
+            const haystack = `${article.title} ${article.summary} ${article.categoryName}`.toLowerCase();
+            return keywords.some((keyword) => haystack.includes(keyword));
+          })
+          .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+          .slice(0, 6)
+      );
+    }).finally(() => {
+      if (active) setLoadingNews(false);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [branch]);
 
   if (!branch) {
     return (
@@ -34,8 +90,6 @@ export default function EngineeringDetailPage() {
       </PageContainer>
     );
   }
-
-  const relatedNews = NEWS_ARTICLES.filter(() => false);
 
   return (
     <PageContainer>
@@ -152,21 +206,28 @@ export default function EngineeringDetailPage() {
         </View>
       </View>
 
-      {/* Related News Section */}
-      {relatedNews.length > 0 && (
-        <View style={styles.relatedSection}>
-          <SectionTitle
-            title="Investigaciones y Noticias Relacionadas"
-            subtitle={`Artículos y avances vinculados a ${branch.name}`}
-            viewAllLink="/actualidad"
-          />
+      <View style={styles.relatedSection}>
+        <SectionTitle
+          title="Noticias relacionadas"
+          subtitle={`Artículos vinculados de manera verificable a ${branch.name}`}
+          viewAllLink="/actualidad"
+        />
+        {loadingNews ? (
+          <View style={styles.newsStatus}>
+            <ActivityIndicator size="small" color={COLORS.primary} />
+          </View>
+        ) : relatedNews.length > 0 ? (
           <View style={[styles.grid, isDesktop ? styles.grid3Cols : isTablet ? styles.grid2Cols : styles.grid1Col]}>
             {relatedNews.map((article) => (
               <NewsCard key={article.id} article={article} variant="vertical" />
             ))}
           </View>
-        </View>
-      )}
+        ) : (
+          <View style={styles.newsEmpty}>
+            <Text style={styles.newsEmptyText}>PRÓXIMAMENTE NOTICIAS</Text>
+          </View>
+        )}
+      </View>
     </PageContainer>
   );
 }
@@ -433,6 +494,24 @@ const styles = StyleSheet.create({
   },
   relatedSection: {
     marginTop: SPACING.lg,
+  },
+  newsStatus: {
+    height: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  newsEmpty: {
+    minHeight: 140,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  newsEmptyText: {
+    color: COLORS.primaryDark,
+    fontSize: 16,
+    fontWeight: '800',
   },
   grid: {
     display: 'flex',

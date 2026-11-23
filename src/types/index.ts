@@ -28,6 +28,7 @@ export interface EngineeringBranch {
   careerImpact: string;
   technologies: string[];
   featuredArticleSlug?: string;
+  relatedKeywords?: string[];
 }
 
 export interface NewsArticle {

@@ -8,7 +8,7 @@ import { NEWS_SOURCES } from '@/data/news-sources';
 import { CATEGORIES } from '@/data/categories';
 import { FeaturedNews } from '@/components/FeaturedNews';
 import { NewsCard } from '@/components/NewsCard';
-import { fetchAllNews } from '@/lib/newsIntegration';
+import { balanceNewsForEditorial, fetchAllNews } from '@/lib/newsIntegration';
 import { NewsArticle } from '@/types';
 
 export default function ActualidadScreen() {
@@ -34,7 +34,12 @@ export default function ActualidadScreen() {
     loadNews
       .then((result) => {
         if (!active) return;
-        setArticles(result.articles);
+        const balanced = balanceNewsForEditorial(result.articles, 6);
+        const balancedIds = new Set(balanced.map((article) => article.id));
+        setArticles([
+          ...balanced,
+          ...result.articles.filter((article) => !balancedIds.has(article.id)),
+        ]);
         setErrors(result.errors);
       })
       .catch((error) => {

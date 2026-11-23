@@ -24,6 +24,7 @@ const career = (
   flagshipProjects: [],
   careerImpact: '',
   technologies: [],
+  relatedKeywords: [],
 });
 
 export const ENGINEERING_BRANCHES: EngineeringBranch[] = [

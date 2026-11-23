@@ -1,17 +1,60 @@
-import React from 'react';
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
 import { PageContainer } from '@/components/PageContainer';
 import { CategoryCard } from '@/components/CategoryCard';
-import { InstitutionCard } from '@/components/InstitutionCard';
+import { NewsCard } from '@/components/NewsCard';
+import { InstitutionLogoStrip } from '@/components/InstitutionLogoStrip';
 import { COLORS, RADIUS, SPACING } from '@/constants/theme';
 import { ENGINEERING_BRANCHES } from '@/data/engineering';
 import { INSTITUTIONS } from '@/data/institutions';
+import { NEWS_SOURCES } from '@/data/news-sources';
+import { fetchAllNews, balanceNewsForEditorial } from '@/lib/newsIntegration';
+import { NewsArticle } from '@/types';
 
 export default function HomeScreen() {
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
+  const isTablet = width >= 600 && width < 900;
+  const [news, setNews] = useState<NewsArticle[]>([]);
+  const [loadingNews, setLoadingNews] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    const load = Platform.OS === 'web'
+      ? fetch('/api/news', { headers: { Accept: 'application/json' } }).then(async (response) => {
+          if (!response.ok) throw new Error(`Actualidad: respuesta HTTP ${response.status}`);
+          return response.json() as Promise<{ articles: NewsArticle[] }>;
+        }).then((result) => result.articles)
+      : fetchAllNews(NEWS_SOURCES).then((result) => result.articles);
+
+    load
+      .then((articles) => {
+        if (active) setNews(balanceNewsForEditorial(articles, 6));
+      })
+      .finally(() => {
+        if (active) setLoadingNews(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const featuredCareers = ENGINEERING_BRANCHES.filter((branch) =>
+    [
+      'ingenieria-civil',
+      'ingenieria-electronica',
+      'ingenieria-mecanica',
+      'ingenieria-informatica',
+    ].includes(branch.slug)
+  );
+
+  const featuredInstitutions = INSTITUTIONS.filter((institution) =>
+    ['conicet', 'nasa', 'esa', 'invap', 'inti', 'cnea', 'arsat', 'spacechina', 'roscosmos'].includes(institution.slug)
+  );
 
   return (
     <PageContainer>
@@ -28,73 +71,64 @@ export default function HomeScreen() {
         </Link>
       </View>
 
-      <View style={styles.leadGrid}>
-        <View style={styles.mainColumn}>
-          <Text style={styles.sectionLabel}>Actualidad</Text>
-          <View style={styles.emptyLead}>
-            <View style={styles.emptyIcon}>
-              <Ionicons name="newspaper-outline" size={34} color={COLORS.primary} />
-            </View>
-            <Text style={styles.emptyTitle}>Próxima edición editorial</Text>
-            <Text style={styles.emptyText}>
-              Todavía no hay publicaciones disponibles. Aquí se incorporarán vistas previas
-              de fuentes oficiales, siempre con enlace a la nota original.
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.sideColumn}>
-          <Text style={styles.sectionLabel}>Directorio académico</Text>
-          <Text style={styles.sideTitle}>13 carreras de grado</Text>
-          <Text style={styles.sideText}>
-            Facultad de Ingeniería de la Universidad de Buenos Aires.
-          </Text>
-          <Link href="/ingenierias" asChild>
-            <Pressable style={styles.textLink}>
-              <Text style={styles.textLinkLabel}>Explorar carreras</Text>
-              <Ionicons name="arrow-forward" size={14} color={COLORS.primary} />
-            </Pressable>
-          </Link>
+      <View style={styles.sectionHeader}>
+        <View>
+          <Text style={styles.sectionLabel}>Noticias recientes</Text>
+          <Text style={styles.sectionTitle}>Últimas novedades oficiales</Text>
         </View>
       </View>
+
+      {loadingNews ? (
+        <View style={styles.newsLoading}>
+          <ActivityIndicator size="small" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Actualizando noticias oficiales</Text>
+        </View>
+      ) : news.length > 0 ? (
+        <>
+          <View style={[styles.newsGrid, isDesktop ? styles.grid3 : isTablet ? styles.grid2 : styles.grid1]}>
+            {news.map((article) => (
+              <NewsCard key={article.id} article={article} variant="vertical" />
+            ))}
+          </View>
+          <Link href="/actualidad" asChild>
+            <Pressable style={styles.viewAllButton}>
+              <Text style={styles.viewAllButtonText}>VER TODAS LAS NOTICIAS</Text>
+              <Ionicons name="arrow-forward" size={14} color={COLORS.white} />
+            </Pressable>
+          </Link>
+        </>
+      ) : (
+        <View style={styles.newsEmpty}>
+          <Text style={styles.emptyTitle}>PRÓXIMAMENTE NOTICIAS</Text>
+        </View>
+      )}
 
       <View style={styles.sectionHeader}>
         <View>
           <Text style={styles.sectionLabel}>Ingenierías</Text>
           <Text style={styles.sectionTitle}>Carreras de grado de la UBA</Text>
         </View>
-        <Link href="/ingenierias" asChild>
-          <Pressable style={styles.textLink}>
-            <Text style={styles.textLinkLabel}>Ver las 13 carreras</Text>
-            <Ionicons name="arrow-forward" size={14} color={COLORS.primary} />
-          </Pressable>
-        </Link>
       </View>
 
-      <View style={[styles.grid, isDesktop ? styles.grid3 : styles.grid1]}>
-        {ENGINEERING_BRANCHES.slice(0, isDesktop ? 6 : 4).map((branch) => (
+      <View style={[styles.careersGrid, isDesktop ? styles.careers3 : isTablet ? styles.careers2 : styles.grid1]}>
+        {featuredCareers.slice(0, 4).map((branch) => (
           <CategoryCard key={branch.slug} branch={branch} />
         ))}
       </View>
+      <Link href="/ingenierias" asChild>
+        <Pressable style={styles.secondaryButton}>
+          <Text style={styles.secondaryButtonText}>VER TODAS LAS CARRERAS</Text>
+          <Ionicons name="arrow-forward" size={14} color={COLORS.primary} />
+        </Pressable>
+      </Link>
 
       <View style={styles.sectionHeader}>
         <View>
-          <Text style={styles.sectionLabel}>Instituciones</Text>
-          <Text style={styles.sectionTitle}>Organismos y centros de I+D</Text>
+          <Text style={styles.sectionLabel}>Organismos e instituciones</Text>
+          <Text style={styles.sectionTitle}>Fuentes oficiales</Text>
         </View>
-        <Link href="/instituciones" asChild>
-          <Pressable style={styles.textLink}>
-            <Text style={styles.textLinkLabel}>Ver directorio</Text>
-            <Ionicons name="arrow-forward" size={14} color={COLORS.primary} />
-          </Pressable>
-        </Link>
       </View>
-
-      <View style={[styles.grid, isDesktop ? styles.grid2 : styles.grid1]}>
-        {INSTITUTIONS.slice(0, 4).map((institution) => (
-          <InstitutionCard key={institution.slug} institution={institution} />
-        ))}
-      </View>
+      <InstitutionLogoStrip institutions={featuredInstitutions} />
     </PageContainer>
   );
 }
@@ -139,88 +173,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
-  leadGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.lg,
-    marginBottom: SPACING.xxl,
-  },
-  mainColumn: {
-    flexGrow: 2,
-    flexBasis: 480,
-  },
-  sideColumn: {
-    flexGrow: 1,
-    flexBasis: 260,
-    borderTopWidth: 2,
-    borderTopColor: COLORS.primary,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.white,
-    padding: SPACING.lg,
-  },
-  sectionLabel: {
-    color: COLORS.primary,
-    fontSize: 11,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 6,
-  },
-  emptyLead: {
-    minHeight: 260,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.white,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    padding: SPACING.xl,
-  },
-  emptyIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.primarySoft,
-    marginBottom: 12,
-  },
-  emptyTitle: {
-    color: COLORS.primaryDark,
-    fontSize: 20,
-    fontWeight: '800',
-  },
-  emptyText: {
-    maxWidth: 520,
-    color: COLORS.textMuted,
-    fontSize: 14,
-    lineHeight: 21,
-    textAlign: 'center',
-    marginTop: 6,
-  },
-  sideTitle: {
-    color: COLORS.primaryDark,
-    fontSize: 28,
-    lineHeight: 34,
-    fontWeight: '900',
-  },
-  sideText: {
-    color: COLORS.textMuted,
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 6,
-  },
-  textLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 12,
-  },
-  textLinkLabel: {
-    color: COLORS.primary,
-    fontSize: 13,
-    fontWeight: '700',
-  },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -231,19 +183,99 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.md,
     marginBottom: SPACING.md,
   },
+  sectionLabel: {
+    color: COLORS.primary,
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 6,
+  },
   sectionTitle: {
     color: COLORS.primaryDark,
     fontSize: 24,
     fontWeight: '900',
   },
-  grid: {
+  newsLoading: {
+    height: 180,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: SPACING.lg,
+  },
+  loadingText: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    marginTop: 8,
+  },
+  newsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: SPACING.md,
-    marginBottom: SPACING.xxl,
+  },
+  careersGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.md,
   },
   grid1: {
+    flexDirection: 'column',
   },
   grid2: {},
   grid3: {},
+  careers2: {
+    flexDirection: 'row',
+  },
+  careers3: {
+    flexDirection: 'row',
+  },
+  viewAllButton: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.md,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.xl,
+  },
+  viewAllButtonText: {
+    color: COLORS.white,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  secondaryButton: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    borderRadius: RADIUS.md,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    marginBottom: SPACING.xl,
+  },
+  secondaryButtonText: {
+    color: COLORS.primary,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  newsEmpty: {
+    height: 160,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  emptyTitle: {
+    color: COLORS.primaryDark,
+    fontSize: 18,
+    fontWeight: '800',
+  },
 });

@@ -129,7 +129,7 @@ export const fetchNewsFromSource = async (source: NewsSource): Promise<NewsArtic
         id: `${source.id}-${slugify(idBase)}`,
         slug: slugify(`${source.shortName}-${title}`),
         title,
-        summary: summary || `Publicación oficial de ${source.shortName}.`,
+        summary,
         category: category.id,
         categoryName: category.name,
         imageUrl,
@@ -172,4 +172,55 @@ export const fetchAllNews = async (sources: NewsSource[]): Promise<{
     articles,
     errors,
   };
+};
+
+export const balanceNewsForEditorial = (articles: NewsArticle[], limit = 6): NewsArticle[] => {
+  const unique = Array.from(
+    new Map(articles.map((article) => [article.originalUrl || article.id, article])).values()
+  ).sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+
+  const groups = new Map<string, NewsArticle[]>();
+  unique.forEach((article) => {
+    const source = article.sourceName;
+    const sourceArticles = groups.get(source) ?? [];
+    sourceArticles.push(article);
+    groups.set(source, sourceArticles);
+  });
+
+  const result: NewsArticle[] = [];
+  const sourceNames = Array.from(groups.keys()).sort((a, b) => {
+    const latestA = groups.get(a)?.[0]?.publishedAt ?? '';
+    const latestB = groups.get(b)?.[0]?.publishedAt ?? '';
+    return latestB.localeCompare(latestA);
+  });
+  const sourceIndexes = new Map(sourceNames.map((sourceName) => [sourceName, 0]));
+
+  while (result.length < limit) {
+    let added = false;
+    for (const sourceName of sourceNames) {
+      if (result.length >= limit) break;
+      const count = result.filter((item) => item.sourceName === sourceName).length;
+      if (count >= 2) continue;
+      const sourceIndex = sourceIndexes.get(sourceName) ?? 0;
+      const sourceArticle = groups.get(sourceName)?.[sourceIndex];
+      if (!sourceArticle) continue;
+      result.push(sourceArticle);
+      sourceIndexes.set(sourceName, sourceIndex + 1);
+      added = true;
+    }
+    if (!added) break;
+  }
+
+  if (result.length < limit) {
+    const selectedIds = new Set(result.map((article) => article.id));
+    for (const article of unique) {
+      if (result.length >= limit) break;
+      if (!selectedIds.has(article.id)) {
+        result.push(article);
+        selectedIds.add(article.id);
+      }
+    }
+  }
+
+  return result;
 };

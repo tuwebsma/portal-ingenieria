@@ -27,6 +27,7 @@ export default function RootLayout() {
         <Stack.Screen name="actualidad/[slug]" />
         <Stack.Screen name="instituciones/index" />
         <Stack.Screen name="instituciones/[slug]" />
+        <Stack.Screen name="instituciones/[slug]/noticias" />
         <Stack.Screen name="publicaciones/index" />
       </Stack>
     </>
