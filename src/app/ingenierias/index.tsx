@@ -31,12 +31,11 @@ export default function IngenieriasScreen() {
       {/* Header Banner */}
       <View style={styles.headerHero}>
         <View style={styles.badge}>
-          <Text style={styles.badgeText}>DIRECTORIO ESPECIALIZADO</Text>
+          <Text style={styles.badgeText}>FACULTAD DE INGENIERÍA · UBA</Text>
         </View>
-        <Text style={styles.title}>Ramas de la Ingeniería</Text>
+        <Text style={styles.title}>13 carreras de grado</Text>
         <Text style={styles.subtitle}>
-          Explorá las principales disciplinas científicas y técnicas, sus campos de aplicación,
-          los desarrollos industriales en curso y los proyectos emblemáticos nacionales e internacionales.
+          Directorio de las carreras de grado de la Facultad de Ingeniería de la Universidad de Buenos Aires.
         </Text>
 
         <View style={styles.searchWrapper}>

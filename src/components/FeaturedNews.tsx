@@ -1,11 +1,10 @@
 import { COLORS, RADIUS, SHADOWS, SPACING } from '@/constants/theme';
-import { formatDate } from '@/lib/utils';
+import { formatDate, openExternalLink } from '@/lib/utils';
 import { NewsArticle } from '@/types';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { Link } from 'expo-router';
 import React from 'react';
-import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 interface FeaturedNewsProps {
   article: NewsArticle;
@@ -16,10 +15,16 @@ export const FeaturedNews: React.FC<FeaturedNewsProps> = ({ article }) => {
   const isDesktop = width >= 860;
 
   return (
-    <Link href={`/actualidad/${article.slug}` as any} style={{ textDecorationLine: 'none' }}>
+    <Pressable onPress={() => openExternalLink(article.originalUrl)}>
       <View style={[styles.heroCard, isDesktop ? styles.heroCardRow : styles.heroCardCol]}>
         <View style={isDesktop ? styles.imageColumn : styles.imageFull}>
-          <Image source={{ uri: article.imageUrl }} style={styles.image} contentFit="cover" />
+          {article.imageUrl ? (
+            <Image source={{ uri: article.imageUrl }} style={styles.image} contentFit="cover" />
+          ) : (
+            <View style={[styles.image, styles.imagePlaceholder]}>
+              <Ionicons name="newspaper-outline" size={38} color={COLORS.primary} />
+            </View>
+          )}
           <View style={styles.badgeOverlay}>
             <View style={styles.liveDot} />
             <Text style={styles.badgeOverlayText}>NOTICIA DE PORTADA</Text>
@@ -32,34 +37,19 @@ export const FeaturedNews: React.FC<FeaturedNewsProps> = ({ article }) => {
               <Text style={styles.categoryBadgeText}>{article.categoryName}</Text>
             </View>
             <View style={styles.locationPill}>
-              <Ionicons name="location-outline" size={12} color={COLORS.primary} />
-              <Text style={styles.locationText}>{article.location}</Text>
+              <Ionicons name="globe-outline" size={12} color={COLORS.primary} />
+              <Text style={styles.locationText}>{article.sourceName}</Text>
             </View>
-            <Text style={styles.readTimeText}>{article.readTime}</Text>
           </View>
 
           <Text style={styles.title}>{article.title}</Text>
-          <Text style={styles.subtitle}>{article.subtitle}</Text>
-
-          {article.keyTakeaways && article.keyTakeaways.length > 0 && (
-            <View style={styles.takeawaysBox}>
-              <Text style={styles.takeawaysTitle}>Puntos clave del desarrollo:</Text>
-              {article.keyTakeaways.slice(0, 2).map((takeaway, idx) => (
-                <View key={idx} style={styles.takeawayItem}>
-                  <Ionicons name="checkmark-circle" size={14} color={COLORS.primary} />
-                  <Text style={styles.takeawayText} numberOfLines={1}>
-                    {takeaway}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          )}
+          <Text style={styles.subtitle}>{article.summary}</Text>
 
           <View style={styles.authorMeta}>
             <View>
-              <Text style={styles.authorName}>{article.author}</Text>
+              <Text style={styles.authorName}>{article.sourceName}</Text>
               <Text style={styles.dateText}>
-                {formatDate(article.date)} • Fuente: {article.source}
+                {formatDate(article.publishedAt)}
               </Text>
             </View>
             <View style={styles.readCta}>
@@ -69,11 +59,16 @@ export const FeaturedNews: React.FC<FeaturedNewsProps> = ({ article }) => {
           </View>
         </View>
       </View>
-    </Link>
+    </Pressable>
   );
 };
 
 const styles = StyleSheet.create({
+  imagePlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primarySoft,
+  },
   heroCard: {
     backgroundColor: COLORS.white,
     borderRadius: RADIUS.xl,

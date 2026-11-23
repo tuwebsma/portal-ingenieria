@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { Link } from 'expo-router';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS, SPACING, SHADOWS } from '@/constants/theme';
@@ -62,6 +63,11 @@ export const InstitutionCard: React.FC<InstitutionCardProps> = ({ institution })
       {/* Actions */}
       <View style={styles.cardFooter}>
         <Text style={styles.establishedYear}>Fundado en {institution.establishedYear}</Text>
+        <Link href={`/instituciones/${institution.slug}` as any} asChild>
+          <Pressable style={styles.profileButton}>
+            <Text style={styles.profileButtonText}>Ver ficha</Text>
+          </Pressable>
+        </Link>
         <Pressable
           style={styles.websiteButton}
           onPress={() => openExternalLink(institution.websiteUrl)}
@@ -77,6 +83,9 @@ export const InstitutionCard: React.FC<InstitutionCardProps> = ({ institution })
 
 const styles = StyleSheet.create({
   card: {
+    flexGrow: 1,
+    flexBasis: 360,
+    maxWidth: 580,
     backgroundColor: COLORS.white,
     borderRadius: RADIUS.lg,
     padding: SPACING.md,
@@ -219,5 +228,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: COLORS.primary,
+  },
+  profileButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  profileButtonText: {
+    color: COLORS.primary,
+    fontSize: 12,
+    fontWeight: '700',
   },
 });

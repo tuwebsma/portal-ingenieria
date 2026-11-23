@@ -1,11 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Image } from 'expo-image';
-import { Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS, SPACING, SHADOWS } from '@/constants/theme';
 import { NewsArticle } from '@/types';
-import { formatDate } from '@/lib/utils';
+import { formatDate, openExternalLink } from '@/lib/utils';
 
 interface NewsCardProps {
   article: NewsArticle;
@@ -15,9 +14,14 @@ interface NewsCardProps {
 export const NewsCard: React.FC<NewsCardProps> = ({ article, variant = 'vertical' }) => {
   if (variant === 'compact') {
     return (
-      <Link href={`/actualidad/${article.slug}` as any} asChild>
-        <Pressable style={styles.compactCard}>
-          <Image source={{ uri: article.imageUrl }} style={styles.compactImage} contentFit="cover" />
+      <Pressable style={styles.compactCard} onPress={() => openExternalLink(article.originalUrl)}>
+          {article.imageUrl ? (
+            <Image source={{ uri: article.imageUrl }} style={styles.compactImage} contentFit="cover" />
+          ) : (
+            <View style={[styles.compactImage, styles.imagePlaceholder]}>
+              <Ionicons name="newspaper-outline" size={18} color={COLORS.primary} />
+            </View>
+          )}
           <View style={styles.compactContent}>
             <View style={styles.tagRow}>
               <Text style={styles.categoryBadgeText}>{article.categoryName}</Text>
@@ -25,53 +29,56 @@ export const NewsCard: React.FC<NewsCardProps> = ({ article, variant = 'vertical
             <Text style={styles.compactTitle} numberOfLines={2}>
               {article.title}
             </Text>
-            <Text style={styles.metaText}>{formatDate(article.date)}</Text>
+            <Text style={styles.metaText}>{formatDate(article.publishedAt)}</Text>
           </View>
-        </Pressable>
-      </Link>
+      </Pressable>
     );
   }
 
   if (variant === 'horizontal') {
     return (
-      <Link href={`/actualidad/${article.slug}` as any} asChild>
-        <Pressable style={styles.horizontalCard}>
-          <Image source={{ uri: article.imageUrl }} style={styles.horizontalImage} contentFit="cover" />
+      <Pressable style={styles.horizontalCard} onPress={() => openExternalLink(article.originalUrl)}>
+          {article.imageUrl ? (
+            <Image source={{ uri: article.imageUrl }} style={styles.horizontalImage} contentFit="cover" />
+          ) : (
+            <View style={[styles.horizontalImage, styles.imagePlaceholder]}>
+              <Ionicons name="newspaper-outline" size={28} color={COLORS.primary} />
+            </View>
+          )}
           <View style={styles.horizontalContent}>
             <View style={styles.metaHeader}>
               <View style={styles.categoryPill}>
                 <Text style={styles.categoryPillText}>{article.categoryName}</Text>
               </View>
-              <View style={styles.locationBadge}>
-                <Ionicons name="location-outline" size={12} color={COLORS.textMuted} />
-                <Text style={styles.locationText}>{article.location}</Text>
-              </View>
+              <Text style={styles.locationText}>{article.sourceName}</Text>
             </View>
             <Text style={styles.horizontalTitle} numberOfLines={2}>
               {article.title}
             </Text>
             <Text style={styles.horizontalSubtitle} numberOfLines={2}>
-              {article.subtitle}
+              {article.summary}
             </Text>
             <View style={styles.metaFooter}>
-              <Text style={styles.authorText}>Por {article.author}</Text>
+              <Text style={styles.authorText}>{article.sourceName}</Text>
               <Text style={styles.dotSeparator}>•</Text>
-              <Text style={styles.dateText}>{formatDate(article.date)}</Text>
-              <Text style={styles.dotSeparator}>•</Text>
-              <Text style={styles.readTimeText}>{article.readTime}</Text>
+              <Text style={styles.dateText}>{formatDate(article.publishedAt)}</Text>
             </View>
           </View>
-        </Pressable>
-      </Link>
+      </Pressable>
     );
   }
 
   // Default: Vertical Card
   return (
-    <Link href={`/actualidad/${article.slug}` as any} asChild>
-      <Pressable style={styles.verticalCard}>
+    <Pressable style={styles.verticalCard} onPress={() => openExternalLink(article.originalUrl)}>
         <View style={styles.imageWrapper}>
-          <Image source={{ uri: article.imageUrl }} style={styles.verticalImage} contentFit="cover" />
+          {article.imageUrl ? (
+            <Image source={{ uri: article.imageUrl }} style={styles.verticalImage} contentFit="cover" />
+          ) : (
+            <View style={[styles.verticalImage, styles.imagePlaceholder]}>
+              <Ionicons name="newspaper-outline" size={32} color={COLORS.primary} />
+            </View>
+          )}
           <View style={styles.categoryOverlay}>
             <Text style={styles.categoryOverlayText}>{article.categoryName}</Text>
           </View>
@@ -79,10 +86,10 @@ export const NewsCard: React.FC<NewsCardProps> = ({ article, variant = 'vertical
 
         <View style={styles.verticalContent}>
           <View style={styles.locationRow}>
-            <Ionicons name="location-outline" size={12} color={COLORS.primary} />
-            <Text style={styles.locationHighlight}>{article.location}</Text>
+            <Ionicons name="globe-outline" size={12} color={COLORS.primary} />
+            <Text style={styles.locationHighlight}>{article.sourceName}</Text>
             <Text style={styles.dotSeparator}>•</Text>
-            <Text style={styles.readTimeText}>{article.readTime}</Text>
+            <Text style={styles.readTimeText}>{article.categoryName}</Text>
           </View>
 
           <Text style={styles.verticalTitle} numberOfLines={3}>
@@ -90,27 +97,34 @@ export const NewsCard: React.FC<NewsCardProps> = ({ article, variant = 'vertical
           </Text>
 
           <Text style={styles.verticalSubtitle} numberOfLines={3}>
-            {article.subtitle}
+            {article.summary}
           </Text>
 
           <View style={styles.cardFooter}>
             <View>
-              <Text style={styles.authorName}>{article.author}</Text>
-              <Text style={styles.dateText}>{formatDate(article.date)}</Text>
+              <Text style={styles.authorName}>{article.sourceName}</Text>
+              <Text style={styles.dateText}>{formatDate(article.publishedAt)}</Text>
             </View>
             <View style={styles.readMoreArrow}>
               <Ionicons name="arrow-forward" size={16} color={COLORS.primary} />
             </View>
           </View>
         </View>
-      </Pressable>
-    </Link>
+    </Pressable>
   );
 };
 
 const styles = StyleSheet.create({
+  imagePlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primarySoft,
+  },
   // Vertical card
   verticalCard: {
+    flexGrow: 1,
+    flexBasis: 280,
+    maxWidth: 380,
     backgroundColor: COLORS.white,
     borderRadius: RADIUS.lg,
     overflow: 'hidden',

@@ -15,7 +15,13 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({ branch }) => {
     <Link href={`/ingenierias/${branch.slug}` as any} asChild>
       <Pressable style={styles.card}>
         <View style={styles.imageContainer}>
-          <Image source={{ uri: branch.bannerImage }} style={styles.bannerImage} contentFit="cover" />
+          {branch.bannerImage ? (
+            <Image source={{ uri: branch.bannerImage }} style={styles.bannerImage} contentFit="cover" />
+          ) : (
+            <View style={styles.placeholderImage}>
+              <Ionicons name="school-outline" size={32} color={COLORS.primary} />
+            </View>
+          )}
           <View style={styles.iconCircle}>
             <Ionicons name={branch.icon as any} size={22} color={COLORS.white} />
           </View>
@@ -28,18 +34,16 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({ branch }) => {
           </Text>
 
           <View style={styles.areasRow}>
-            {branch.keyAreas.slice(0, 2).map((area, idx) => (
-              <View key={idx} style={styles.areaChip}>
-                <Text style={styles.areaChipText} numberOfLines={1}>
-                  {area}
-                </Text>
-              </View>
-            ))}
+            <View style={styles.areaChip}>
+              <Text style={styles.areaChipText} numberOfLines={1}>
+                {branch.knowledgeArea}
+              </Text>
+            </View>
           </View>
 
           <View style={styles.footer}>
             <Text style={styles.projectsCount}>
-              {branch.flagshipProjects.length} proyectos emblemáticos
+              {branch.institution}
             </Text>
             <View style={styles.exploreLink}>
               <Text style={styles.exploreText}>Explorar rama</Text>
@@ -54,6 +58,9 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({ branch }) => {
 
 const styles = StyleSheet.create({
   card: {
+    flexGrow: 1,
+    flexBasis: 280,
+    maxWidth: 380,
     backgroundColor: COLORS.white,
     borderRadius: RADIUS.lg,
     overflow: 'hidden',
@@ -70,6 +77,13 @@ const styles = StyleSheet.create({
   bannerImage: {
     width: '100%',
     height: '100%',
+  },
+  placeholderImage: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primarySoft,
   },
   iconCircle: {
     position: 'absolute',

@@ -18,6 +18,9 @@ export interface EngineeringBranch {
   name: string;
   shortDescription: string;
   fullDescription: string;
+  knowledgeArea: string;
+  institution: string;
+  institutionUrl?: string;
   icon: string;
   bannerImage: string;
   keyAreas: string[];
@@ -31,25 +34,36 @@ export interface NewsArticle {
   id: string;
   slug: string;
   title: string;
-  subtitle: string;
-  content: string[];
+  summary: string;
   category: string;
   categoryName: string;
-  engineeringBranch: string;
-  author: string;
-  date: string;
-  readTime: string;
   imageUrl: string;
-  tags: string[];
+  sourceName: string;
+  sourceUrl: string;
+  originalUrl: string;
+  publishedAt: string;
+  ingestedAt: string;
+  tags?: string[];
   isFeatured: boolean;
-  source: string;
-  location: string;
-  keyTakeaways?: string[];
-  quote?: {
-    text: string;
-    author: string;
-    role: string;
-  };
+}
+
+export type NewsSourceKind =
+  | 'institucion'
+  | 'universidad'
+  | 'centro-investigacion'
+  | 'organismo'
+  | 'agencia';
+
+export interface NewsSource {
+  id: string;
+  name: string;
+  shortName: string;
+  country: string;
+  category: NewsSourceKind;
+  websiteUrl: string;
+  feedUrl?: string;
+  enabled: boolean;
+  integrationType: 'rss' | 'atom' | 'api' | 'pending';
 }
 
 export type InstitutionType = 'investigacion' | 'empresa' | 'universidad' | 'gobierno' | 'consorcio';

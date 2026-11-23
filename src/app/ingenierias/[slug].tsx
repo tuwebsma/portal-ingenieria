@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, useWindowDimensions } from 'react-native';
-import { useLocalSearchParams, useRouter, Link } from 'expo-router';
+import { useLocalSearchParams, Link } from 'expo-router';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { PageContainer } from '@/components/PageContainer';
@@ -12,17 +12,30 @@ import { NEWS_ARTICLES } from '@/data/news';
 
 export default function EngineeringDetailPage() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
-  const router = useRouter();
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
   const isTablet = width >= 600 && width < 900;
 
-  const branch = ENGINEERING_BRANCHES.find((b) => b.slug === slug) || ENGINEERING_BRANCHES[0];
+  const branch = ENGINEERING_BRANCHES.find((b) => b.slug === slug);
 
-  // Related news
-  const relatedNews = NEWS_ARTICLES.filter(
-    (a) => a.engineeringBranch === branch.name || a.category === branch.id
-  );
+  if (!branch) {
+    return (
+      <PageContainer>
+        <View style={styles.notFound}>
+          <Text style={styles.branchTitle}>Carrera no encontrada</Text>
+          <Text style={styles.branchSubtitle}>La ruta solicitada no corresponde a una carrera de este directorio.</Text>
+          <Link href="/ingenierias" asChild>
+            <Pressable style={styles.backButton}>
+              <Ionicons name="arrow-back" size={16} color={COLORS.white} />
+              <Text style={styles.backButtonText}>Volver a Ingenierías</Text>
+            </Pressable>
+          </Link>
+        </View>
+      </PageContainer>
+    );
+  }
+
+  const relatedNews = NEWS_ARTICLES.filter(() => false);
 
   return (
     <PageContainer>
@@ -45,7 +58,13 @@ export default function EngineeringDetailPage() {
 
       {/* Hero Banner */}
       <View style={styles.heroCard}>
-        <Image source={{ uri: branch.bannerImage }} style={styles.heroBannerImage} contentFit="cover" />
+        {branch.bannerImage ? (
+          <Image source={{ uri: branch.bannerImage }} style={styles.heroBannerImage} contentFit="cover" />
+        ) : (
+          <View style={styles.heroPlaceholder}>
+            <Ionicons name={branch.icon as any} size={48} color={COLORS.primary} />
+          </View>
+        )}
         <View style={styles.heroOverlay}>
           <View style={styles.iconCircle}>
             <Ionicons name={branch.icon as any} size={28} color={COLORS.white} />
@@ -153,6 +172,29 @@ export default function EngineeringDetailPage() {
 }
 
 const styles = StyleSheet.create({
+  notFound: {
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.xxl,
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.md,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginTop: 16,
+  },
+  backButtonText: {
+    color: COLORS.white,
+    fontSize: 13,
+    fontWeight: '700',
+  },
   breadcrumbRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -183,6 +225,13 @@ const styles = StyleSheet.create({
   heroBannerImage: {
     width: '100%',
     height: '100%',
+  },
+  heroPlaceholder: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primarySoft,
   },
   heroOverlay: {
     position: 'absolute',

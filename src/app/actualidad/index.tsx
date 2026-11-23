@@ -1,298 +1,345 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, Pressable, useWindowDimensions } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Link } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { PageContainer } from '@/components/PageContainer';
-import { NewsCard } from '@/components/NewsCard';
-import { SearchBar } from '@/components/SearchBar';
-import { FilterBar, FilterOption } from '@/components/FilterBar';
-import { SectionTitle } from '@/components/SectionTitle';
-import { COLORS, SPACING, RADIUS } from '@/constants/theme';
-import { NEWS_ARTICLES } from '@/data/news';
+import { COLORS, RADIUS, SPACING } from '@/constants/theme';
+import { NEWS_SOURCES } from '@/data/news-sources';
 import { CATEGORIES } from '@/data/categories';
+import { FeaturedNews } from '@/components/FeaturedNews';
+import { NewsCard } from '@/components/NewsCard';
+import { fetchAllNews } from '@/lib/newsIntegration';
+import { NewsArticle } from '@/types';
 
 export default function ActualidadScreen() {
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
   const isTablet = width >= 600 && width < 900;
+  const [articles, setArticles] = useState<NewsArticle[]>([]);
+  const [errors, setErrors] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('todos');
-  const [selectedLocation, setSelectedLocation] = useState<string>('todos');
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
 
-  // Category filter options
-  const categoryOptions: FilterOption[] = [
-    { id: 'todos', label: 'Todas las áreas', count: NEWS_ARTICLES.length },
-    ...CATEGORIES.map((cat) => ({
-      id: cat.slug,
-      label: cat.name,
-      count: NEWS_ARTICLES.filter((a) => a.category === cat.slug).length,
-    })),
-  ];
+    const loadNews = Platform.OS === 'web'
+      ? fetch('/api/news', { headers: { Accept: 'application/json' } }).then(async (response) => {
+          if (!response.ok) throw new Error(`Actualidad: respuesta HTTP ${response.status}`);
+          return response.json() as Promise<{ articles: NewsArticle[]; errors: string[] }>;
+        })
+      : fetchAllNews(NEWS_SOURCES);
 
-  // Location filter options
-  const locationOptions = [
-    { id: 'todos', label: 'Todas las regiones' },
-    { id: 'Argentina', label: 'Argentina' },
-    { id: 'Internacional', label: 'Internacional' },
-  ];
+    loadNews
+      .then((result) => {
+        if (!active) return;
+        setArticles(result.articles);
+        setErrors(result.errors);
+      })
+      .catch((error) => {
+        if (!active) return;
+        setErrors([error instanceof Error ? error.message : 'No se pudo actualizar Actualidad.']);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
 
-  // Filtered news calculation
-  const filteredArticles = useMemo(() => {
-    return NEWS_ARTICLES.filter((article) => {
-      // Category filter
-      if (selectedCategory !== 'todos' && article.category !== selectedCategory) {
-        return false;
-      }
-      // Location filter
-      if (selectedLocation !== 'todos' && !article.location.includes(selectedLocation)) {
-        return false;
-      }
-      // Search filter
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const inTitle = article.title.toLowerCase().includes(q);
-        const inSubtitle = article.subtitle.toLowerCase().includes(q);
-        const inAuthor = article.author.toLowerCase().includes(q);
-        const inTags = article.tags.some((tag) => tag.toLowerCase().includes(q));
-        const inBranch = article.engineeringBranch.toLowerCase().includes(q);
-        if (!inTitle && !inSubtitle && !inAuthor && !inTags && !inBranch) {
-          return false;
-        }
-      }
-      return true;
-    });
-  }, [searchQuery, selectedCategory, selectedLocation]);
+    return () => {
+      active = false;
+    };
+  }, [refreshKey]);
+
+  const featuredArticle = articles[0];
+  const secondaryArticles = articles.slice(1);
 
   return (
     <PageContainer>
-      {/* Header Banner */}
-      <View style={styles.headerHero}>
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>REVISTA DIGITAL & ACTUALIDAD</Text>
-        </View>
-        <Text style={styles.title}>Noticias, Ciencia y Tecnología</Text>
-        <Text style={styles.subtitle}>
-          Seguí los avances técnicos más trascendentes en energía nuclear, misiones espaciales,
-          inteligencia artificial, biotecnología y grandes obras de infraestructura.
+      <View style={styles.issueHeader}>
+        <Text style={styles.kicker}>Actualidad</Text>
+        <Text style={styles.title}>Ciencia, tecnología e ingeniería</Text>
+        <Text style={styles.deck}>
+          Cobertura editorial preparada para publicar avances oficiales de organismos,
+          universidades y centros de investigación de Argentina y el mundo.
         </Text>
-
-        <View style={styles.searchWrapper}>
-          <SearchBar
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Buscar por titular, tecnología, institución (INVAP, CNEA, satélites, litio)..."
-          />
-        </View>
       </View>
 
-      {/* Filter Bars */}
-      <View style={styles.filterSection}>
-        {/* Categories */}
-        <View style={styles.filterGroup}>
-          <Text style={styles.filterGroupLabel}>Área temática:</Text>
-          <FilterBar
-            options={categoryOptions}
-            selectedId={selectedCategory}
-            onSelect={setSelectedCategory}
-          />
+      {loading ? (
+        <View style={styles.emptyState}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.emptyTitle}>Actualizando las fuentes oficiales</Text>
         </View>
-
-        {/* Location selector pills */}
-        <View style={styles.locationSelectorRow}>
-          <Text style={styles.filterGroupLabel}>Enfoque territorial:</Text>
-          <View style={styles.locationPills}>
-            {locationOptions.map((loc) => {
-              const active = selectedLocation === loc.id;
-              return (
-                <Pressable
-                  key={loc.id}
-                  style={[styles.locationChip, active && styles.locationChipActive]}
-                  onPress={() => setSelectedLocation(loc.id)}
-                >
-                  <Text style={[styles.locationChipText, active && styles.locationChipTextActive]}>
-                    {loc.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
+      ) : featuredArticle ? (
+        <View>
+          <FeaturedNews article={featuredArticle} />
+          {secondaryArticles.length > 0 && (
+            <View style={styles.resultsHeader}>
+              <Text style={styles.resultsTitle}>Últimas publicaciones</Text>
+              <Text style={styles.resultsMeta}>
+                {articles.length} novedades · ordenadas de más reciente a más antigua
+              </Text>
+            </View>
+          )}
+          <View
+            style={[
+              styles.newsGrid,
+              isDesktop ? styles.grid3 : isTablet ? styles.grid2 : styles.grid1,
+            ]}
+          >
+            {secondaryArticles.map((article) => (
+              <NewsCard key={article.id} article={article} variant="vertical" />
+            ))}
           </View>
         </View>
-      </View>
-
-      {/* Articles Grid */}
-      <View style={styles.resultsHeader}>
-        <SectionTitle
-          title={`Artículos Publicados (${filteredArticles.length})`}
-          subtitle={
-            searchQuery
-              ? `Resultados para "${searchQuery}"`
-              : 'Cobertura editorial verificada de la ingeniería'
-          }
-        />
-      </View>
-
-      <View style={[styles.grid, isDesktop ? styles.grid3Cols : isTablet ? styles.grid2Cols : styles.grid1Col]}>
-        {filteredArticles.map((article) => (
-          <NewsCard key={article.id} article={article} variant="vertical" />
-        ))}
-      </View>
-
-      {filteredArticles.length === 0 && (
+      ) : (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>No se hallaron artículos con esos criterios</Text>
+          <View style={styles.emptyIcon}>
+            <Ionicons name="newspaper-outline" size={32} color={COLORS.primary} />
+          </View>
+          <Text style={styles.emptyTitle}>Todavía no hay publicaciones disponibles</Text>
           <Text style={styles.emptyText}>
-            Intentá restablecer los filtros de categoría o región, o utilizá palabras más generales.
+            Las fuentes oficiales no devolvieron novedades en este momento.
           </Text>
           <Pressable
-            style={styles.resetButton}
-            onPress={() => {
-              setSearchQuery('');
-              setSelectedCategory('todos');
-              setSelectedLocation('todos');
-            }}
+            style={styles.retryButton}
+            onPress={() => setRefreshKey((current) => current + 1)}
           >
-            <Text style={styles.resetButtonText}>Restablecer filtros</Text>
+            <Ionicons name="refresh-outline" size={15} color={COLORS.white} />
+            <Text style={styles.retryButtonText}>Actualizar</Text>
           </Pressable>
         </View>
       )}
+
+      {errors.length > 0 && !loading && (
+        <View style={styles.sourceWarning}>
+          <Ionicons name="information-circle-outline" size={17} color={COLORS.primary} />
+          <Text style={styles.sourceWarningText}>
+            Algunas fuentes no pudieron actualizarse: {errors.join(' · ')}
+          </Text>
+        </View>
+      )}
+
+      <View style={styles.editorialGrid}>
+        <View style={styles.panel}>
+          <Text style={styles.panelTitle}>Secciones previstas</Text>
+          {CATEGORIES.map((category) => (
+            <View key={category.slug} style={styles.categoryRow}>
+              <Text style={styles.categoryName}>{category.name}</Text>
+              <Text style={styles.categoryCount}>Próximamente</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.panel}>
+          <Text style={styles.panelTitle}>Fuentes oficiales preparadas</Text>
+          {NEWS_SOURCES.map((source) => (
+            <View key={source.id} style={styles.sourceRow}>
+              <View>
+                <Text style={styles.sourceName}>{source.shortName}</Text>
+                <Text style={styles.sourceMeta}>{source.country}</Text>
+              </View>
+              <Ionicons name="link-outline" size={16} color={COLORS.textLight} />
+            </View>
+          ))}
+          <Link href="/instituciones" asChild>
+            <Pressable style={styles.directoryLink}>
+              <Text style={styles.directoryLinkText}>Ver instituciones</Text>
+              <Ionicons name="arrow-forward" size={14} color={COLORS.primary} />
+            </Pressable>
+          </Link>
+        </View>
+      </View>
     </PageContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  headerHero: {
-    backgroundColor: COLORS.white,
-    padding: SPACING.xl,
-    borderRadius: RADIUS.xl,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+  issueHeader: {
+    borderBottomWidth: 3,
+    borderBottomColor: COLORS.primaryDark,
+    paddingBottom: SPACING.lg,
     marginBottom: SPACING.lg,
   },
-  badge: {
-    backgroundColor: COLORS.primarySoft,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: RADIUS.sm,
-    alignSelf: 'flex-start',
-    marginBottom: 8,
-  },
-  badgeText: {
+  kicker: {
     color: COLORS.primary,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
-    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+    marginBottom: 6,
   },
   title: {
-    fontSize: 30,
-    fontWeight: '900',
     color: COLORS.primaryDark,
-    letterSpacing: -0.5,
-    marginBottom: 8,
+    fontSize: 38,
+    lineHeight: 44,
+    fontWeight: '900',
+    letterSpacing: -1,
   },
-  subtitle: {
-    fontSize: 15,
+  deck: {
     color: COLORS.textMuted,
-    lineHeight: 22,
-    marginBottom: SPACING.lg,
-    maxWidth: 720,
+    fontSize: 16,
+    lineHeight: 24,
+    maxWidth: 760,
+    marginTop: 8,
   },
-  searchWrapper: {
-    maxWidth: 600,
-  },
-  filterSection: {
+  emptyState: {
+    minHeight: 220,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: COLORS.white,
-    padding: SPACING.md,
-    borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
-    marginBottom: SPACING.lg,
-    gap: 12,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.xl,
+    marginBottom: SPACING.xl,
   },
-  filterGroup: {
-    gap: 6,
+  emptyIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primarySoft,
+    marginBottom: 12,
   },
-  filterGroupLabel: {
-    fontSize: 12,
-    fontWeight: '700',
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '800',
     color: COLORS.primaryDark,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    textAlign: 'center',
   },
-  locationSelectorRow: {
-    gap: 6,
-  },
-  locationPills: {
-    flexDirection: 'row',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  locationChip: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: RADIUS.sm,
-    backgroundColor: COLORS.surfaceAlt,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-  },
-  locationChipActive: {
-    backgroundColor: COLORS.primaryDark,
-    borderColor: COLORS.primaryDark,
-  },
-  locationChipText: {
-    fontSize: 12,
-    fontWeight: '600',
+  emptyText: {
+    maxWidth: 620,
+    fontSize: 14,
+    lineHeight: 21,
     color: COLORS.textMuted,
+    textAlign: 'center',
+    marginTop: 6,
   },
-  locationChipTextActive: {
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.md,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginTop: 12,
+  },
+  retryButtonText: {
     color: COLORS.white,
+    fontSize: 13,
     fontWeight: '700',
   },
   resultsHeader: {
+    borderTopWidth: 2,
+    borderTopColor: COLORS.primaryDark,
+    paddingTop: SPACING.md,
     marginBottom: SPACING.md,
   },
-  grid: {
+  resultsTitle: {
+    color: COLORS.primaryDark,
+    fontSize: 22,
+    fontWeight: '900',
+  },
+  resultsMeta: {
+    color: COLORS.textLight,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  newsGrid: {
     display: 'flex',
     gap: SPACING.md,
+    marginBottom: SPACING.xl,
   },
-  grid1Col: {
+  grid1: {
     flexDirection: 'column',
   },
-  grid2Cols: {
+  grid2: {
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
-  grid3Cols: {
+  grid3: {
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
-  emptyState: {
+  sourceWarning: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: COLORS.primarySoft,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.lg,
+  },
+  sourceWarningText: {
+    flex: 1,
+    color: COLORS.primaryDark,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  editorialGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.lg,
+  },
+  panel: {
+    flexGrow: 1,
+    flexBasis: 300,
     backgroundColor: COLORS.white,
-    padding: SPACING.xxl,
-    borderRadius: RADIUS.lg,
-    alignItems: 'center',
+    borderTopWidth: 2,
+    borderTopColor: COLORS.primary,
     borderWidth: 1,
     borderColor: COLORS.border,
-    marginTop: SPACING.lg,
+    padding: SPACING.md,
   },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+  panelTitle: {
+    fontSize: 16,
+    fontWeight: '800',
     color: COLORS.primaryDark,
-    marginBottom: 6,
+    marginBottom: 8,
   },
-  emptyText: {
-    fontSize: 14,
-    color: COLORS.textMuted,
-    textAlign: 'center',
-    marginBottom: 14,
+  categoryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderLight,
   },
-  resetButton: {
-    backgroundColor: COLORS.primary,
+  categoryName: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  categoryCount: {
+    color: COLORS.textLight,
+    fontSize: 11,
+  },
+  sourceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: RADIUS.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderLight,
   },
-  resetButtonText: {
-    color: COLORS.white,
+  sourceName: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  sourceMeta: {
+    color: COLORS.textLight,
+    fontSize: 11,
+  },
+  directoryLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 12,
+  },
+  directoryLinkText: {
+    color: COLORS.primary,
     fontSize: 13,
     fontWeight: '700',
   },
