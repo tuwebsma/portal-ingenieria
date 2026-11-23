@@ -65,6 +65,22 @@ export interface NewsSource {
   feedUrl?: string;
   enabled: boolean;
   integrationType: 'rss' | 'atom' | 'api' | 'pending';
+  listingUrl?: string;
+  adapter?: 'rss' | 'wordpress-api' | 'html';
+}
+
+export interface NewsSourceDiagnostic {
+  sourceId: string;
+  name: string;
+  originUrl: string;
+  mechanism: 'rss' | 'atom' | 'api' | 'html' | 'wordpress-api' | 'pending';
+  status: 'ok' | 'empty' | 'error' | 'disabled';
+  httpStatus?: number;
+  obtained: number;
+  valid: number;
+  discarded: number;
+  lastChecked: string;
+  error?: string;
 }
 
 export type InstitutionType = 'investigacion' | 'empresa' | 'universidad' | 'gobierno' | 'consorcio';

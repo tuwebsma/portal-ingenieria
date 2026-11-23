@@ -52,8 +52,12 @@ export default function HomeScreen() {
     ].includes(branch.slug)
   );
 
-  const featuredInstitutions = INSTITUTIONS.filter((institution) =>
-    ['conicet', 'nasa', 'esa', 'invap', 'inti', 'cnea', 'arsat', 'spacechina', 'roscosmos'].includes(institution.slug)
+  const featuredInstitutions = INSTITUTIONS.filter(
+    (institution) =>
+      institution.country === 'Argentina' ||
+      institution.country === 'Argentina / Global'
+  ).filter((institution) =>
+    ['conicet', 'nasa', 'esa', 'invap', 'inti', 'cnea', 'arsat', 'nexciencia', 'fiuba', 'conae', 'y-tec', 'satellogic'].includes(institution.slug)
   );
 
   return (

@@ -9,7 +9,7 @@ import { CATEGORIES } from '@/data/categories';
 import { FeaturedNews } from '@/components/FeaturedNews';
 import { NewsCard } from '@/components/NewsCard';
 import { balanceNewsForEditorial, fetchAllNews } from '@/lib/newsIntegration';
-import { NewsArticle } from '@/types';
+import { NewsArticle, NewsSourceDiagnostic } from '@/types';
 
 export default function ActualidadScreen() {
   const { width } = useWindowDimensions();
@@ -17,6 +17,7 @@ export default function ActualidadScreen() {
   const isTablet = width >= 600 && width < 900;
   const [articles, setArticles] = useState<NewsArticle[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
+  const [diagnostics, setDiagnostics] = useState<NewsSourceDiagnostic[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -27,7 +28,7 @@ export default function ActualidadScreen() {
     const loadNews = Platform.OS === 'web'
       ? fetch('/api/news', { headers: { Accept: 'application/json' } }).then(async (response) => {
           if (!response.ok) throw new Error(`Actualidad: respuesta HTTP ${response.status}`);
-          return response.json() as Promise<{ articles: NewsArticle[]; errors: string[] }>;
+          return response.json() as Promise<{ articles: NewsArticle[]; errors: string[]; diagnostics: NewsSourceDiagnostic[] }>;
         })
       : fetchAllNews(NEWS_SOURCES);
 
@@ -41,6 +42,7 @@ export default function ActualidadScreen() {
           ...result.articles.filter((article) => !balancedIds.has(article.id)),
         ]);
         setErrors(result.errors);
+        setDiagnostics(result.diagnostics ?? []);
       })
       .catch((error) => {
         if (!active) return;
@@ -136,14 +138,34 @@ export default function ActualidadScreen() {
         </View>
 
         <View style={styles.panel}>
-          <Text style={styles.panelTitle}>Fuentes oficiales preparadas</Text>
-          {NEWS_SOURCES.map((source) => (
-            <View key={source.id} style={styles.sourceRow}>
-              <View>
-                <Text style={styles.sourceName}>{source.shortName}</Text>
-                <Text style={styles.sourceMeta}>{source.country}</Text>
+          <Text style={styles.panelTitle}>Estado de fuentes oficiales</Text>
+          {(diagnostics.length ? diagnostics : NEWS_SOURCES.map((source) => ({
+            sourceId: source.id,
+            name: source.shortName,
+            originUrl: source.websiteUrl,
+            mechanism: 'pending',
+            status: 'disabled',
+            obtained: 0,
+            valid: 0,
+            discarded: 0,
+            lastChecked: '',
+          }))).map((diagnostic) => (
+            <View key={diagnostic.sourceId} style={styles.sourceRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.sourceName}>{diagnostic.name}</Text>
+                <Text style={styles.sourceMeta}>
+                  {diagnostic.status === 'ok'
+                    ? `${diagnostic.valid} válidas`
+                    : diagnostic.status === 'disabled'
+                      ? 'Pendiente'
+                      : diagnostic.status === 'error'
+                        ? (diagnostic as NewsSourceDiagnostic).error
+                        : 'Sin publicaciones'}
+                </Text>
               </View>
-              <Ionicons name="link-outline" size={16} color={COLORS.textLight} />
+              <Text style={[styles.sourceStatus, diagnostic.status === 'ok' && styles.sourceStatusOk]}>
+                {diagnostic.status.toUpperCase()}
+              </Text>
             </View>
           ))}
           <Link href="/instituciones" asChild>
@@ -336,6 +358,14 @@ const styles = StyleSheet.create({
   sourceMeta: {
     color: COLORS.textLight,
     fontSize: 11,
+  },
+  sourceStatus: {
+    color: COLORS.textLight,
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  sourceStatusOk: {
+    color: '#059669',
   },
   directoryLink: {
     flexDirection: 'row',
